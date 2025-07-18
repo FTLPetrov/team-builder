@@ -1,0 +1,52 @@
+# Node.js (client)
+client/node_modules/
+client/dist/
+client/.env
+client/.env.*
+
+# Vite
+client/.vite/
+
+# Dependency lock files (optional, if you want to ignore them)
+# client/package-lock.json
+# client/yarn.lock
+
+# .NET (server)
+server/**/bin/
+server/**/obj/
+server/**/Debug/
+server/**/.vs
+server/**/Release/
+server/**/TestResults/
+server/**/project.assets.json
+server/**/project.nuget.cache
+server/**/staticwebassets/
+server/**/staticwebassets.removed.txt
+server/**/Properties/launchSettings.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VSCode/JetBrains/other IDEs
+.vscode/
+.idea/
+*.sw?
+*.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build output (general)
+dist/
+build/
+

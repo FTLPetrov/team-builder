@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../Data/TeamBuilder.Data.Models/TeamBuilder.Data.Models.csproj" />
+    <ProjectReference Include="../../Data/TeamBuilder.Data/TeamBuilder.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Contracts\User\Responses\" />
+  </ItemGroup>
+
 </Project>

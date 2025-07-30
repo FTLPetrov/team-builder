@@ -9,6 +9,7 @@ namespace TeamBuilder.Services.Core.Interfaces
     public interface ITeamService
     {
         Task<IEnumerable<TeamResponse>> GetAllAsync();
+        Task<IEnumerable<TeamResponse>> GetUserTeamsAsync(Guid userId);
         Task<TeamResponse?> GetByIdAsync(Guid id);
         Task<TeamCreateResponse> CreateAsync(TeamCreateRequest request);
         Task<TeamUpdateResponse?> UpdateAsync(Guid id, TeamUpdateRequest request);
@@ -17,6 +18,8 @@ namespace TeamBuilder.Services.Core.Interfaces
         Task<bool> KickMemberAsync(Guid teamId, Guid userId);
         Task<bool> AssignRoleAsync(Guid teamId, Guid userId, string role);
         Task<bool> TransferOwnershipAsync(Guid teamId, Guid newOrganizerId);
+        Task<bool> JoinTeamAsync(Guid teamId, Guid userId);
+        Task<bool> LeaveTeamAsync(Guid teamId, Guid userId);
         Task<EventResponse?> CreateEventAsync(EventCreateRequest request);
     }
 } 

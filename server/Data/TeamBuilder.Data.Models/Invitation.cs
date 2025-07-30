@@ -12,5 +12,6 @@ namespace TeamBuilder.Data.Models
         public bool Accepted { get; set; }
         public DateTime? RespondedAt { get; set; }
         public Team Team { get; set; } = null!;
+        public User InvitedBy { get; set; } = null!;
     }
 } 

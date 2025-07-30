@@ -12,7 +12,7 @@ using TeamBuilder.Data;
 namespace TeamBuilder.Data.Migrations
 {
     [DbContext(typeof(TeamBuilderDbContext))]
-    [Migration("20250726185901_InitialCreate")]
+    [Migration("20250727220740_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -106,6 +106,8 @@ namespace TeamBuilder.Data.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("InvitedById");
 
                     b.HasIndex("TeamId");
 
@@ -241,11 +243,19 @@ namespace TeamBuilder.Data.Migrations
 
             modelBuilder.Entity("TeamBuilder.Data.Models.Invitation", b =>
                 {
+                    b.HasOne("TeamBuilder.Data.Models.User", "InvitedBy")
+                        .WithMany()
+                        .HasForeignKey("InvitedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("TeamBuilder.Data.Models.Team", "Team")
                         .WithMany()
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("InvitedBy");
 
                     b.Navigation("Team");
                 });

@@ -45,7 +45,7 @@ namespace TeamBuilder.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Chats");
+                    b.ToTable("Chats", (string)null);
                 });
 
             modelBuilder.Entity("TeamBuilder.Data.Models.Event", b =>
@@ -75,7 +75,7 @@ namespace TeamBuilder.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Events");
+                    b.ToTable("Events", (string)null);
                 });
 
             modelBuilder.Entity("TeamBuilder.Data.Models.Invitation", b =>
@@ -104,9 +104,11 @@ namespace TeamBuilder.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("InvitedById");
+
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Invitations");
+                    b.ToTable("Invitations", (string)null);
                 });
 
             modelBuilder.Entity("TeamBuilder.Data.Models.Team", b =>
@@ -131,7 +133,7 @@ namespace TeamBuilder.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Teams");
+                    b.ToTable("Teams", (string)null);
                 });
 
             modelBuilder.Entity("TeamBuilder.Data.Models.TeamMember", b =>
@@ -147,7 +149,7 @@ namespace TeamBuilder.Data.Migrations
 
                     b.HasKey("TeamId", "UserId");
 
-                    b.ToTable("TeamMembers");
+                    b.ToTable("TeamMembers", (string)null);
                 });
 
             modelBuilder.Entity("TeamBuilder.Data.Models.User", b =>
@@ -211,7 +213,7 @@ namespace TeamBuilder.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("TeamBuilder.Data.Models.Chat", b =>
@@ -238,11 +240,19 @@ namespace TeamBuilder.Data.Migrations
 
             modelBuilder.Entity("TeamBuilder.Data.Models.Invitation", b =>
                 {
+                    b.HasOne("TeamBuilder.Data.Models.User", "InvitedBy")
+                        .WithMany()
+                        .HasForeignKey("InvitedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("TeamBuilder.Data.Models.Team", "Team")
                         .WithMany()
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("InvitedBy");
 
                     b.Navigation("Team");
                 });

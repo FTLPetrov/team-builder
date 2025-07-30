@@ -9,6 +9,7 @@ namespace TeamBuilder.Services.Core.Interfaces
     public interface IInvitationService
     {
         Task<IEnumerable<InvitationResponse>> GetAllAsync(Guid teamId);
+        Task<IEnumerable<InvitationResponse>> GetUserInvitationsAsync(Guid userId);
         Task<InvitationResponse?> GetByIdAsync(Guid invitationId);
         Task<InvitationCreateResponse> CreateAsync(InvitationCreateRequest request);
         Task<InvitationRespondResponse> RespondAsync(InvitationRespondRequest request);

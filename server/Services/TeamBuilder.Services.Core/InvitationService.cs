@@ -25,6 +25,25 @@ namespace TeamBuilder.Services.Core
             return invitations.Select(MapToInvitationResponse);
         }
 
+        public async Task<IEnumerable<InvitationResponse>> GetUserInvitationsAsync(Guid userId)
+        {
+            Console.WriteLine($"InvitationService: Looking for invitations for user {userId}");
+            
+            var invitations = await _db.Set<Invitation>()
+                .Where(i => i.InvitedUserId == userId && i.RespondedAt == null)
+                .Include(i => i.Team)
+                .Include(i => i.InvitedBy)
+                .ToListAsync();
+            
+            Console.WriteLine($"InvitationService: Found {invitations.Count} invitations in database");
+            foreach (var invitation in invitations)
+            {
+                Console.WriteLine($"InvitationService: Invitation {invitation.Id} - Team: {invitation.Team?.Name}, InvitedBy: {invitation.InvitedBy?.UserName}");
+            }
+            
+            return invitations.Select(MapToInvitationResponse);
+        }
+
         public async Task<InvitationResponse?> GetByIdAsync(Guid invitationId)
         {
             var invitation = await _db.Set<Invitation>().FindAsync(invitationId);
@@ -88,7 +107,10 @@ namespace TeamBuilder.Services.Core
                 InvitedById = invitation.InvitedById,
                 SentAt = invitation.SentAt,
                 Accepted = invitation.Accepted,
-                RespondedAt = invitation.RespondedAt
+                RespondedAt = invitation.RespondedAt,
+                TeamName = invitation.Team?.Name ?? "Unknown Team",
+                SenderName = invitation.InvitedBy?.UserName ?? invitation.InvitedBy?.Email ?? "Unknown Sender",
+                SenderEmail = invitation.InvitedBy?.Email ?? ""
             };
         }
     }

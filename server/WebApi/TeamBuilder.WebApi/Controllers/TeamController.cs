@@ -19,6 +19,50 @@ namespace TeamBuilder.WebApi.Controllers
         public async Task<ActionResult<IEnumerable<TeamResponse>>> GetAll()
             => Ok(await _teamService.GetAllAsync());
 
+        [HttpGet("user")]
+        public async Task<ActionResult<IEnumerable<TeamResponse>>> GetUserTeams()
+        {
+            if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj == null)
+            {
+                return Unauthorized();
+            }
+            var userId = (Guid)userIdObj;
+            var userTeams = await _teamService.GetUserTeamsAsync(userId);
+            return Ok(userTeams);
+        }
+
+        [HttpPost("{id}/join")]
+        public async Task<ActionResult> JoinTeam(Guid id)
+        {
+            if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj == null)
+            {
+                return Unauthorized();
+            }
+            var userId = (Guid)userIdObj;
+            var success = await _teamService.JoinTeamAsync(id, userId);
+            if (success)
+            {
+                return Ok(new { success = true, message = "Successfully joined the team" });
+            }
+            return BadRequest(new { success = false, message = "Failed to join team. Team may be closed or you may already be a member." });
+        }
+
+        [HttpPost("{id}/leave")]
+        public async Task<ActionResult> LeaveTeam(Guid id)
+        {
+            if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj == null)
+            {
+                return Unauthorized();
+            }
+            var userId = (Guid)userIdObj;
+            var success = await _teamService.LeaveTeamAsync(id, userId);
+            if (success)
+            {
+                return Ok(new { success = true, message = "Successfully left the team" });
+            }
+            return BadRequest(new { success = false, message = "Failed to leave team. You may not be a member or you may be the organizer." });
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<TeamResponse>> GetById(Guid id)
         {

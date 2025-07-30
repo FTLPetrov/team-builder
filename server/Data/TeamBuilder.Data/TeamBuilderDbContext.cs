@@ -39,6 +39,12 @@ namespace TeamBuilder.Data
                 .HasForeignKey(i => i.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<Invitation>()
+                .HasOne(i => i.InvitedBy)
+                .WithMany()
+                .HasForeignKey(i => i.InvitedById)
+                .OnDelete(DeleteBehavior.Cascade);
+
             modelBuilder.Entity<Chat>()
                 .HasOne(c => c.Team)
                 .WithMany()

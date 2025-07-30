@@ -19,12 +19,18 @@ namespace TeamBuilder.WebApi.Middleware
 
             if (!string.IsNullOrEmpty(token))
             {
+                Console.WriteLine($"JWT Middleware: Processing token: {token.Substring(0, Math.Min(20, token.Length))}...");
                 try
                 {
                     var principal = jwtService.ValidateToken(token);
                     if (principal != null)
                     {
+                        Console.WriteLine($"JWT Middleware: Token validated successfully");
+                        // Set the User principal for ASP.NET Core authentication
+                        context.User = principal;
+                        
                         var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        Console.WriteLine($"JWT Middleware: UserId from token: {userId}");
                         if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
                         {
                             var user = await userService.GetByIdAsync(userGuid);
@@ -32,14 +38,23 @@ namespace TeamBuilder.WebApi.Middleware
                             {
                                 context.Items["User"] = user;
                                 context.Items["UserId"] = userGuid;
+                                Console.WriteLine($"JWT Middleware: User found and set in context");
                             }
                         }
                     }
+                    else
+                    {
+                        Console.WriteLine($"JWT Middleware: Token validation returned null");
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Token validation failed, but we continue without authentication
+                    Console.WriteLine($"JWT Middleware: Token validation failed: {ex.Message}");
                 }
+            }
+            else
+            {
+                Console.WriteLine($"JWT Middleware: No token found in Authorization header");
             }
 
             await _next(context);

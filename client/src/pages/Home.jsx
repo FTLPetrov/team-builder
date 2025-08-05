@@ -84,7 +84,22 @@ const Home = () => {
         </div>
       </div>
 
-      
+      {/* CTA Section */}
+      <div className="bg-blue-600 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Ready to build your dream team?
+          </h2>
+          <p className="text-xl text-blue-100 mb-8">
+            Join thousands of teams already using TeamBuilder to achieve their goals.
+          </p>
+          {!isAuthenticated && (
+            <Link to="/register">
+              <Button variant="white" size="large">Start Building Today</Button>
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

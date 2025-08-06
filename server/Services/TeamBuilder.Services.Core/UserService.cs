@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.IO;
 using TeamBuilder.Data.Models;
 using TeamBuilder.Services.Core.Interfaces;
 using TeamBuilder.Services.Core.Contracts.User.Responses;
 using TeamBuilder.Services.Core.Contracts.User.Requests;
-using TeamBuilder.Data;
-using Microsoft.EntityFrameworkCore;
+using TeamBuilder.Data.Repositories;
+using TeamBuilder.Data.Repositories.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 
 namespace TeamBuilder.Services.Core
 {
@@ -16,12 +18,14 @@ public sealed class UserService : IUserService
 {
     private readonly UserManager<User> _userManager;
     private readonly IJwtService _jwtService;
+    private readonly IWarningRepository _warningRepository;
     private readonly HashSet<string> _blacklistedTokens = new();
 
-    public UserService(UserManager<User> userManager, IJwtService jwtService)
+    public UserService(UserManager<User> userManager, IJwtService jwtService, IWarningRepository warningRepository)
     {
         _userManager = userManager;
         _jwtService = jwtService;
+        _warningRepository = warningRepository;
     }
 
     public async Task<IEnumerable<UserResponse>> GetAllAsync()
@@ -49,7 +53,10 @@ public sealed class UserService : IUserService
             UserName = user.UserName,
             FirstName = user.FirstName,
             LastName = user.LastName,
-            ProfilePictureUrl = user.ProfilePictureUrl
+            ProfilePictureUrl = user.ProfilePictureUrl,
+            IsAdmin = user.IsAdmin,
+            EmailConfirmed = user.EmailConfirmed,
+            CreatedAt = DateTime.UtcNow // Since User model doesn't have CreatedAt
         };
     }
 
@@ -75,10 +82,15 @@ public sealed class UserService : IUserService
         var user = await _userManager.FindByIdAsync(id.ToString());
         if (user == null) return null;
         
-        user.FirstName = firstName;
-        user.LastName = lastName;
-        user.Email = email;
-        user.UserName = username;
+
+        if (!string.IsNullOrWhiteSpace(firstName))
+            user.FirstName = firstName;
+        if (!string.IsNullOrWhiteSpace(lastName))
+            user.LastName = lastName;
+        if (!string.IsNullOrWhiteSpace(email))
+            user.Email = email;
+        if (!string.IsNullOrWhiteSpace(username))
+            user.UserName = username;
         
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
@@ -115,7 +127,7 @@ public sealed class UserService : IUserService
     {
         User? user = null;
         
-        // Try to find user by email first, then by username
+
         if (!string.IsNullOrEmpty(request.Email))
         {
             user = await _userManager.FindByEmailAsync(request.Email);
@@ -143,7 +155,10 @@ public sealed class UserService : IUserService
                 UserName = user.UserName,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                ProfilePictureUrl = user.ProfilePictureUrl
+                ProfilePictureUrl = user.ProfilePictureUrl,
+                IsAdmin = user.IsAdmin,
+                EmailConfirmed = user.EmailConfirmed,
+                CreatedAt = DateTime.UtcNow // Since User model doesn't have CreatedAt
             }
         };
     }
@@ -152,7 +167,7 @@ public sealed class UserService : IUserService
     {
         if (string.IsNullOrEmpty(token)) return false;
         
-        // Add token to blacklist
+
         lock (_blacklistedTokens)
         {
             _blacklistedTokens.Add(token);
@@ -161,12 +176,33 @@ public sealed class UserService : IUserService
         return true;
     }
 
-    public async Task<UserResponse?> UpdateProfilePictureAsync(Guid id, string profilePictureUrl)
+    public async Task<UserResponse?> UpdateProfilePictureAsync(Guid id, IFormFile profilePicture)
     {
         var user = await _userManager.FindByIdAsync(id.ToString());
         if (user == null) return null;
 
+
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "profile-pictures");
+        if (!Directory.Exists(uploadsDir))
+        {
+            Directory.CreateDirectory(uploadsDir);
+        }
+
+
+        var fileExtension = Path.GetExtension(profilePicture.FileName).ToLowerInvariant();
+        var fileName = $"{id}_{DateTime.UtcNow:yyyyMMddHHmmss}{fileExtension}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await profilePicture.CopyToAsync(stream);
+        }
+
+
+        var profilePictureUrl = $"/uploads/profile-pictures/{fileName}";
         user.ProfilePictureUrl = profilePictureUrl;
+        
         var result = await _userManager.UpdateAsync(user);
         
         if (!result.Succeeded)
@@ -187,7 +223,7 @@ public sealed class UserService : IUserService
     {
         if (string.IsNullOrEmpty(token)) return null;
 
-        // Check if token is blacklisted
+
         lock (_blacklistedTokens)
         {
             if (_blacklistedTokens.Contains(token)) return null;
@@ -206,6 +242,31 @@ public sealed class UserService : IUserService
         {
             return _blacklistedTokens.Contains(token);
         }
+    }
+
+    public async Task<bool> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null) return false;
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        return result.Succeeded;
+    }
+
+    public async Task<IEnumerable<WarningResponse>> GetUserWarningsAsync(Guid userId)
+    {
+        var warnings = await _warningRepository.GetWarningsByUserAsync(userId);
+
+        return warnings.Select(w => new WarningResponse
+        {
+            Id = w.Id,
+            Message = w.Message,
+            UserId = w.UserId,
+            UserName = w.User != null ? $"{w.User.FirstName} {w.User.LastName}" : "Unknown User",
+            UserEmail = w.User?.Email ?? "Unknown Email",
+            CreatedByUserName = w.CreatedByUser != null ? $"{w.CreatedByUser.FirstName} {w.CreatedByUser.LastName}" : "Unknown Admin",
+            CreatedAt = w.CreatedAt
+        });
     }
 }
 }

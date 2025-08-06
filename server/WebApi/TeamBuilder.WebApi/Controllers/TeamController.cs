@@ -31,6 +31,18 @@ namespace TeamBuilder.WebApi.Controllers
             return Ok(userTeams);
         }
 
+        [HttpGet("user/organized")]
+        public async Task<ActionResult<IEnumerable<TeamResponse>>> GetUserOrganizedTeams()
+        {
+            if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj == null)
+            {
+                return Unauthorized();
+            }
+            var userId = (Guid)userIdObj;
+            var organizedTeams = await _teamService.GetUserOrganizedTeamsAsync(userId);
+            return Ok(organizedTeams);
+        }
+
         [HttpPost("{id}/join")]
         public async Task<ActionResult> JoinTeam(Guid id)
         {

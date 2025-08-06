@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using TeamBuilder.Services.Core.Interfaces;
+using System.Collections.Generic;
 
 namespace TeamBuilder.WebApi.Middleware
 {
@@ -38,7 +39,27 @@ namespace TeamBuilder.WebApi.Middleware
                             {
                                 context.Items["User"] = user;
                                 context.Items["UserId"] = userGuid;
-                                Console.WriteLine($"JWT Middleware: User found and set in context");
+                                
+                                // Ensure the user has the correct role claim
+                                var roleClaim = principal.FindFirst(ClaimTypes.Role);
+                                if (roleClaim == null)
+                                {
+                                    // Add role claim if missing
+                                    var claims = new List<Claim>(principal.Claims);
+                                    if (user.IsAdmin)
+                                    {
+                                        claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                                    }
+                                    else
+                                    {
+                                        claims.Add(new Claim(ClaimTypes.Role, "User"));
+                                    }
+                                    
+                                    var newPrincipal = new ClaimsPrincipal(new ClaimsIdentity(claims, principal.Identity?.AuthenticationType));
+                                    context.User = newPrincipal;
+                                }
+                                
+                                Console.WriteLine($"JWT Middleware: User found and set in context with role: {context.User.FindFirst(ClaimTypes.Role)?.Value}");
                             }
                         }
                     }

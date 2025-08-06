@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using TeamBuilder.Data.Models;
 using TeamBuilder.Services.Core.Interfaces;
+using System.Collections.Generic;
 
 namespace TeamBuilder.Services.Core
 {
@@ -28,7 +29,7 @@ namespace TeamBuilder.Services.Core
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email!),
@@ -37,6 +38,16 @@ namespace TeamBuilder.Services.Core
                 new Claim("LastName", user.LastName),
                 new Claim("ProfilePictureUrl", user.ProfilePictureUrl ?? "")
             };
+
+
+            if (user.IsAdmin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
+            else
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "User"));
+            }
 
             var token = new JwtSecurityToken(
                 issuer: issuer,

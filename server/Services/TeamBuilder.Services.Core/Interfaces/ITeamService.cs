@@ -10,6 +10,7 @@ namespace TeamBuilder.Services.Core.Interfaces
     {
         Task<IEnumerable<TeamResponse>> GetAllAsync();
         Task<IEnumerable<TeamResponse>> GetUserTeamsAsync(Guid userId);
+        Task<IEnumerable<TeamResponse>> GetUserOrganizedTeamsAsync(Guid userId);
         Task<TeamResponse?> GetByIdAsync(Guid id);
         Task<TeamCreateResponse> CreateAsync(TeamCreateRequest request);
         Task<TeamUpdateResponse?> UpdateAsync(Guid id, TeamUpdateRequest request);

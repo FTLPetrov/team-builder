@@ -8,5 +8,6 @@ namespace TeamBuilder.Data.Models
         public Guid TeamId { get; set; }
         public TeamRole Role { get; set; }
         public Team Team { get; set; } = null!;
+        public User User { get; set; } = null!;
     }
 } 

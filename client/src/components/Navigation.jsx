@@ -1,14 +1,49 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import ProfileDropdown from './ProfileDropdown';
+import NotificationBell from './NotificationBell';
+import { invitationService } from '../services/api/invitationService';
 
 const Navigation = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const location = useLocation();
+  const [invitationCount, setInvitationCount] = useState(0);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchInvitationCount();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handleInvitationCountChanged = () => {
+      fetchInvitationCount();
+    };
+
+    window.addEventListener('invitationCountChanged', handleInvitationCountChanged);
+    return () => {
+      window.removeEventListener('invitationCountChanged', handleInvitationCountChanged);
+    };
+  }, []);
+
+  const fetchInvitationCount = async () => {
+    try {
+      const invitations = await invitationService.getUserInvitations();
+      setInvitationCount(invitations.length);
+    } catch (error) {
+      console.error('Error fetching invitation count:', error);
+    }
+  };
 
   const isActive = (path) => {
     return location.pathname === path;
   };
+
+
+  if (isAdmin && location.pathname.startsWith('/admin')) {
+    return null; // AdminNavigation will be rendered by the layout
+  }
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-200">
@@ -51,21 +86,48 @@ const Navigation = () => {
                 >
                   Events
                 </Link>
-                <Link
-                  to="/invitations"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive('/invitations')
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
-                  }`}
-                >
-                  Invitations
-                </Link>
+                {!isAdmin && (
+                  <Link
+                    to="/about"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/about')
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    About Us
+                  </Link>
+                )}
+                {!isAdmin && (
+                  <Link
+                    to="/contact"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/contact')
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Contact Support
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/admin')
+                        ? 'bg-red-100 text-red-700'
+                        : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                    }`}
+                  >
+                    Admin Panel
+                  </Link>
+                )}
               </div>
             )}
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            {isAuthenticated && <NotificationBell />}
             {isAuthenticated ? (
               <ProfileDropdown />
             ) : (

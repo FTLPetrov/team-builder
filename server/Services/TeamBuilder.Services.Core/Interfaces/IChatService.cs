@@ -8,9 +8,7 @@ namespace TeamBuilder.Services.Core.Interfaces
 {
     public interface IChatService
     {
-        Task<IEnumerable<ChatResponse>> GetAllAsync(Guid teamId);
-        Task<ChatResponse?> GetByIdAsync(Guid chatId);
-        Task<ChatCreateResponse> CreateAsync(ChatCreateRequest request);
-        Task<bool> DeleteAsync(Guid chatId);
+        Task<IEnumerable<ChatResponse>> GetTeamMessagesAsync(Guid teamId, int page = 1, int pageSize = 20);
+        Task<ChatResponse> CreateMessageAsync(ChatCreateRequest request, Guid userId);
     }
 } 

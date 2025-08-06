@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
 
@@ -8,14 +8,14 @@ const Register = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
     userName: '',
+    email: '',
     password: '',
     confirmPassword: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -28,19 +28,16 @@ const Register = () => {
   };
 
   const validateForm = () => {
+    if (!formData.firstName || !formData.lastName || !formData.userName || !formData.email || !formData.password) {
+      return 'All fields are required';
+    }
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
+      return 'Passwords do not match';
     }
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return false;
+      return 'Password must be at least 6 characters long';
     }
-    if (!formData.userName.trim()) {
-      setError('Username is required');
-      return false;
-    }
-    return true;
+    return null;
   };
 
   const handleSubmit = async (e) => {
@@ -48,25 +45,17 @@ const Register = () => {
     setLoading(true);
     setError('');
 
-    if (!validateForm()) {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       setLoading(false);
       return;
     }
 
     try {
-      const { confirmPassword, ...registerData } = formData;
-      // Transform field names to match backend expectations
-      const transformedData = {
-        FirstName: registerData.firstName,
-        LastName: registerData.lastName,
-        Email: registerData.email,
-        UserName: registerData.userName,
-        Password: registerData.password,
-        ConfirmPassword: confirmPassword
-      };
-      const result = await register(transformedData);
+      const result = await register(formData);
       if (result.success) {
-        navigate('/login', { state: { message: 'Registration successful! Please check your email to confirm your account.' } });
+        navigate('/dashboard');
       } else {
         setError(result.error || 'Registration failed');
       }
@@ -80,23 +69,26 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Create your account</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Join TeamBuilder and start building amazing teams
-          </p>
-        </div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Create your account
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          Or{' '}
+          <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            sign in to your existing account
+          </Link>
+        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <Card>
           <CardHeader>
-            <CardTitle>Sign up for TeamBuilder</CardTitle>
+            <CardTitle>Register</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
                   {error}
                 </div>
               )}
@@ -115,7 +107,7 @@ const Register = () => {
                     value={formData.firstName}
                     onChange={handleChange}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="First name"
+                    placeholder="Enter your first name"
                   />
                 </div>
 
@@ -132,26 +124,9 @@ const Register = () => {
                     value={formData.lastName}
                     onChange={handleChange}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Last name"
+                    placeholder="Enter your last name"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter your email"
-                />
               </div>
 
               <div>
@@ -167,7 +142,24 @@ const Register = () => {
                   value={formData.userName}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Choose a username"
+                  placeholder="Enter your username"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your email address"
                 />
               </div>
 
@@ -184,7 +176,7 @@ const Register = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Create a password"
+                  placeholder="Enter your password"
                 />
               </div>
 
@@ -205,25 +197,13 @@ const Register = () => {
                 />
               </div>
 
-              <div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  loading={loading}
-                  disabled={loading}
-                >
-                  Create account
-                </Button>
-              </div>
-
-              <div className="text-center">
-                <p className="text-sm text-gray-600">
-                  Already have an account?{' '}
-                  <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-                    Sign in
-                  </Link>
-                </p>
-              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                loading={loading}
+              >
+                Create account
+              </Button>
             </form>
           </CardContent>
         </Card>

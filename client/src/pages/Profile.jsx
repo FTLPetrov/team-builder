@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
 import Button from '../components/Button';
 import PasswordChangeModal from '../components/PasswordChangeModal';
-import { authService } from '../services/authService';
+import { authService } from '../services/api/authService';
+import { BACKEND_URL } from '../config/environment';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -12,17 +13,31 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
-    email: user?.email || '',
-    userName: user?.userName || ''
+    firstName: '',
+    lastName: '',
+    email: '',
+    userName: ''
   });
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
     }
   }, [user, navigate]);
+
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        userName: user.userName || ''
+      });
+    }
+  }, [user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -33,19 +48,81 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
-    // TODO: Implement profile update functionality
-    console.log('Saving profile:', formData);
-    setIsEditing(false);
+    try {
+
+      const updatedUser = await authService.updateProfile({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        userName: formData.userName
+      });
+
+
+      alert('Profile updated successfully!');
+      setIsEditing(false);
+      
+
+      window.location.reload();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    }
   };
 
   const handleCancel = () => {
-    setFormData({
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      userName: user?.userName || ''
-    });
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        userName: user.userName || ''
+      });
+    }
     setIsEditing(false);
+  };
+
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+      }
+      
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB.');
+        return;
+      }
+      
+      setProfilePicture(file);
+      handleProfilePictureUpload(file);
+    }
+  };
+
+  const handleProfilePictureUpload = async (file) => {
+    try {
+      setIsUploading(true);
+      
+
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      
+
+      await authService.uploadProfilePicture(formData);
+      
+
+      alert('Profile picture updated successfully!');
+      
+
+      window.location.reload();
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      alert('Failed to upload profile picture. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handlePasswordChange = async (passwordData) => {
@@ -79,14 +156,37 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               <div className="flex flex-col items-center">
-                <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-white text-2xl font-medium">
-                    {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                  </span>
+                <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center mb-4 overflow-hidden">
+                  {user?.profilePictureUrl ? (
+                    <img 
+                      src={`${BACKEND_URL}${user.profilePictureUrl}`}
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-2xl font-medium">
+                      {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                    </span>
+                  )}
                 </div>
-                <Button variant="outline" size="small">
-                  Change Picture
-                </Button>
+                <div className="flex flex-col items-center space-y-2">
+                  <input
+                    type="file"
+                    id="profilePicture"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="small"
+                    disabled={isUploading}
+                    onClick={() => document.getElementById('profilePicture').click()}
+                  >
+                    {isUploading ? 'Uploading...' : 'Change Picture'}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

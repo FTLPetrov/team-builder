@@ -1,38 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { teamService } from '../services/teamService';
-import { invitationService } from '../services/invitationService';
+import { useAuth } from '../contexts/AuthContext';
+import { useTeams } from '../hooks/useTeams';
+import { useInvitations } from '../hooks/useInvitations';
 import Button from '../components/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
+import Notification from '../components/Notification';
+import { safeText } from '../utils/escapeHtml';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [teams, setTeams] = useState([]);
-  const [invitations, setInvitations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { teams, loading: teamsLoading } = useTeams();
+  const { invitations, respondToInvitation } = useInvitations();
+  const [notification, setNotification] = useState(null);
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [teamsData, invitationsData] = await Promise.all([
-          teamService.getUserTeams(),
-          invitationService.getUserInvitations()
-        ]);
-        
-        setTeams(teamsData);
-        setInvitations(invitationsData);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleRespondToInvitation = async (invitationId, accept) => {
+    const result = await respondToInvitation(invitationId, accept);
+    
+    if (result.success) {
+      setNotification({
+        message: accept 
+          ? `Successfully joined team "${result.data?.TeamName || 'Unknown Team'}"!`
+          : 'Invitation declined successfully.',
+        type: 'success'
+      });
+    } else {
+      setNotification({
+        message: result.error || 'Failed to respond to invitation.',
+        type: 'error'
+      });
+    }
+  };
 
-    fetchDashboardData();
-  }, []);
+  const clearNotification = () => {
+    setNotification(null);
+  };
 
-  if (loading) {
+  if (teamsLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -45,6 +49,13 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={clearNotification}
+        />
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
@@ -56,21 +67,24 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-200px)]">
           {/* Teams Section */}
-          <div className="lg:col-span-2">
-            <Card>
+          <div className="lg:col-span-2 h-full">
+            <Card className="h-full flex flex-col">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle>Your Teams</CardTitle>
-                  <Link to="/teams">
-                    <Button variant="outline" size="small">
-                      View All
+                  <Link to="/teams/create">
+                    <Button size="small" variant="outline">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Create Team
                     </Button>
                   </Link>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {teams.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -86,11 +100,11 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {teams.slice(0, 3).map((team) => (
+                    {teams.map((team) => (
                       <div key={team.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
                         <div>
                           <h3 className="font-medium text-gray-900">{team.name}</h3>
-                          <p className="text-sm text-gray-600">{team.description}</p>
+                          <p className="text-sm text-gray-600">{safeText(team.description)}</p>
                         </div>
                         <Link to={`/teams/${team.id}`}>
                           <Button variant="ghost" size="small">
@@ -106,27 +120,43 @@ const Dashboard = () => {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <div className="h-full">
             {/* Invitations */}
-            <Card>
+            <Card className="h-full flex flex-col">
               <CardHeader>
                 <CardTitle>Invitations</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1 overflow-y-auto">
                 {invitations.length === 0 ? (
-                  <p className="text-gray-600 text-sm">No pending invitations</p>
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No pending invitations</h3>
+                    <p className="text-gray-600">You're all caught up!</p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {invitations.slice(0, 3).map((invitation) => (
+                    {invitations.map((invitation) => (
                       <div key={invitation.id} className="p-3 bg-blue-50 rounded-lg">
                         <p className="text-sm font-medium text-blue-900">
                           Invitation to join {invitation.teamName}
                         </p>
                         <div className="flex space-x-2 mt-2">
-                          <Button size="small" variant="success">
+                          <Button 
+                            size="small" 
+                            variant="success"
+                            onClick={() => handleRespondToInvitation(invitation.id, true)}
+                          >
                             Accept
                           </Button>
-                          <Button size="small" variant="danger">
+                          <Button 
+                            size="small" 
+                            variant="danger"
+                            onClick={() => handleRespondToInvitation(invitation.id, false)}
+                          >
                             Decline
                           </Button>
                         </div>

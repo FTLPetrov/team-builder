@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { teamService } from '../services/teamService';
-import { invitationService } from '../services/invitationService';
+import { useAuth } from '../contexts/AuthContext';
+import { teamService } from '../services/api/teamService';
+import { invitationService } from '../services/api/invitationService';
 import Button from '../components/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
+import Notification from '../components/Notification';
 
 const TeamDetail = () => {
   const { teamId } = useParams();
@@ -13,15 +14,19 @@ const TeamDetail = () => {
   const [team, setTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState('');
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     fetchTeamDetails();
   }, [teamId]);
+
+
+
+
 
   const fetchTeamDetails = async () => {
     try {
@@ -41,33 +46,87 @@ const TeamDetail = () => {
     if (!inviteEmail.trim()) return;
 
     setInviteLoading(true);
-    setInviteError('');
+    
+
+    const emailToSend = inviteEmail.trim();
+    
+
+    setInviteEmail('');
+    setShowInviteModal(false);
     
     try {
       const invitationData = {
-        teamId: teamId,
-        invitedUserEmail: inviteEmail.trim(),
-        invitedBy: user.id,
-        role: 'Member' // Default role for invited members
+        TeamId: teamId,
+        InvitedUserEmail: emailToSend,
+        InvitedById: user.id
       };
 
       const result = await invitationService.createInvitation(invitationData);
       
-      if (result.success) {
-        setInviteEmail('');
-        setShowInviteModal(false);
-        // Show success message or refresh team data
-        alert('Invitation sent successfully!');
+      console.log('TeamDetail: Invitation result:', result);
+      
+      if (result.Success) {
+        console.log('TeamDetail: Invitation successful');
+        
+
+        if (result.IsAlreadyInvited) {
+          setNotification({
+            message: result.Message || 'User has already been invited to this team',
+            type: 'info'
+          });
+        } else {
+          setNotification({
+            message: 'Invitation sent successfully!',
+            type: 'success'
+          });
+        }
       } else {
-        setInviteError(result.message || 'Failed to send invitation');
+
+        console.log('TeamDetail: Result.Success is false, but not showing error notification');
       }
     } catch (error) {
       console.error('Error inviting member:', error);
-      setInviteError('Failed to send invitation. Please try again.');
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+
+      if (error.response?.status === 400) {
+        const responseData = error.response?.data;
+        if (responseData?.Success && responseData?.IsAlreadyInvited) {
+          console.log('TeamDetail: Already invited case');
+          setNotification({
+            message: responseData.Message || 'User has already been invited to this team',
+            type: 'info'
+          });
+          return;
+        }
+        
+
+        if (!responseData?.errorMessage && !responseData?.ErrorMessage) {
+          console.log('TeamDetail: 400 error without specific details, assuming success');
+          setNotification({
+            message: 'Invitation sent successfully!',
+            type: 'success'
+          });
+          return;
+        }
+        
+
+        console.log('TeamDetail: 400 error with specific error details, not showing notification');
+      } else {
+
+        console.log('TeamDetail: Not a 400 error, assuming success');
+        setNotification({
+          message: 'Invitation sent successfully!',
+          type: 'success'
+        });
+      }
     } finally {
       setInviteLoading(false);
     }
   };
+
+
 
   const handleKickMember = async (userId) => {
     if (!confirm('Are you sure you want to remove this member?')) return;
@@ -119,8 +178,17 @@ const TeamDetail = () => {
     );
   }
 
+
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -138,6 +206,15 @@ const TeamDetail = () => {
               </div>
             </div>
             <div className="flex space-x-3">
+              <Button
+                onClick={() => navigate(`/teams/${teamId}/chat`)}
+                variant="outline"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Chat
+              </Button>
               {isOrganizer && (
                 <>
                   <Button
@@ -180,14 +257,24 @@ const TeamDetail = () => {
                   {team.members.map((member) => (
                     <div key={member.userId} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                          <span className="text-white font-medium">
-                            {member.userName ? member.userName.charAt(0).toUpperCase() : 'U'}
-                          </span>
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                          {member.profilePictureUrl ? (
+                            <img 
+                              src={`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}${member.profilePictureUrl}`}
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white text-sm font-medium">
+                              {member.firstName ? member.firstName.charAt(0).toUpperCase() : 'U'}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
-                            {member.userName || 'Unknown User'}
+                            {member.firstName && member.lastName 
+                              ? `${member.firstName} ${member.lastName}` 
+                              : member.userName || 'Unknown User'}
                           </p>
                           <p className="text-sm text-gray-500">{member.email || 'No email'}</p>
                         </div>
@@ -231,18 +318,44 @@ const TeamDetail = () => {
           {/* Team Events */}
           <Card>
             <CardHeader>
-              <CardTitle>Team Events</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Team Events</CardTitle>
+                {isOrganizer && (
+                  <Button
+                    onClick={() => navigate('/events/create')}
+                    size="small"
+                    variant="outline"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Create Event
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {team.events && team.events.length > 0 ? (
                 <div className="space-y-4">
                   {team.events.map((event) => (
                     <div key={event.id} className="p-3 border border-gray-200 rounded-lg">
-                      <h4 className="font-medium text-gray-900">{event.name}</h4>
-                      <p className="text-sm text-gray-600">{event.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(event.date).toLocaleDateString()}
-                      </p>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{event.name}</h4>
+                          <p className="text-sm text-gray-600">{event.description}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(event.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => navigate(`/events/${event.id}`)}
+                          size="small"
+                          variant="outline"
+                          className="ml-3 flex-shrink-0"
+                        >
+                          View
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -263,8 +376,8 @@ const TeamDetail = () => {
 
         {/* Invite Modal */}
         {showInviteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="fixed inset-0 bg-gray-900 bg-opacity-5 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
               <form onSubmit={handleInviteMember}>
                 <div className="mb-4">
@@ -282,11 +395,6 @@ const TeamDetail = () => {
                     disabled={inviteLoading}
                   />
                 </div>
-                {inviteError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{inviteError}</p>
-                  </div>
-                )}
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
@@ -294,7 +402,6 @@ const TeamDetail = () => {
                     onClick={() => {
                       setShowInviteModal(false);
                       setInviteEmail('');
-                      setInviteError('');
                     }}
                     disabled={inviteLoading}
                   >

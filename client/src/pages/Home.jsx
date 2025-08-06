@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 
 const Home = () => {
@@ -93,11 +93,6 @@ const Home = () => {
           <p className="text-xl text-blue-100 mb-8">
             Join thousands of teams already using TeamBuilder to achieve their goals.
           </p>
-          {!isAuthenticated && (
-            <Link to="/register">
-              <Button variant="white" size="large">Start Building Today</Button>
-            </Link>
-          )}
         </div>
       </div>
     </div>

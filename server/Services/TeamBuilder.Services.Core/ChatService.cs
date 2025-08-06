@@ -2,60 +2,65 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using TeamBuilder.Data;
 using TeamBuilder.Data.Models;
 using TeamBuilder.Services.Core.Contracts.Chat.Requests;
 using TeamBuilder.Services.Core.Contracts.Chat.Responses;
 using TeamBuilder.Services.Core.Interfaces;
+using TeamBuilder.Data.Repositories;
+using TeamBuilder.Data.Repositories.Interfaces;
 
 namespace TeamBuilder.Services.Core
 {
     public class ChatService : IChatService
     {
-        private readonly TeamBuilderDbContext _db;
-        public ChatService(TeamBuilderDbContext db)
+        private readonly IChatRepository _chatRepository;
+        
+        public ChatService(IChatRepository chatRepository)
         {
-            _db = db;
+            _chatRepository = chatRepository;
+        }
+
+        public async Task<IEnumerable<ChatResponse>> GetTeamMessagesAsync(Guid teamId, int page = 1, int pageSize = 20)
+        {
+            var chats = await _chatRepository.GetMessagesByTeamAsync(teamId, page, pageSize);
+            return chats.Select(MapToChatResponse);
+        }
+
+        public async Task<ChatResponse> CreateMessageAsync(ChatCreateRequest request, Guid userId)
+        {
+            var chat = new Chat(request.TeamId, userId, request.Message);
+            
+            await _chatRepository.AddAsync(chat);
+            
+
+            var reloadedChat = await _chatRepository.GetByIdAsync(chat.Id);
+            return MapToChatResponse(reloadedChat);
         }
 
         public async Task<IEnumerable<ChatResponse>> GetAllAsync(Guid teamId)
         {
-            var chats = await _db.Set<Chat>().Where(c => c.TeamId == teamId).OrderBy(c => c.SentAt).ToListAsync();
+            var chats = await _chatRepository.GetAllMessagesByTeamAsync(teamId);
             return chats.Select(MapToChatResponse);
         }
 
         public async Task<ChatResponse?> GetByIdAsync(Guid chatId)
         {
-            var chat = await _db.Set<Chat>().FindAsync(chatId);
+            var chat = await _chatRepository.GetByIdAsync(chatId);
             return chat == null ? null : MapToChatResponse(chat);
         }
 
         public async Task<ChatCreateResponse> CreateAsync(ChatCreateRequest request)
         {
-            var chat = new Chat
-            {
-                Id = Guid.NewGuid(),
-                TeamId = request.TeamId,
-                SenderId = request.SenderId,
-                Message = request.Message,
-                SentAt = DateTime.UtcNow
-            };
-            _db.Set<Chat>().Add(chat);
-            await _db.SaveChangesAsync();
-            return new ChatCreateResponse
-            {
-                Success = true,
-                Id = chat.Id
-            };
+
+            throw new NotImplementedException("Use CreateMessageAsync with userId parameter instead");
         }
 
         public async Task<bool> DeleteAsync(Guid chatId)
         {
-            var chat = await _db.Set<Chat>().FindAsync(chatId);
+            var chat = await _chatRepository.GetByIdAsync(chatId);
             if (chat == null) return false;
-            _db.Set<Chat>().Remove(chat);
-            await _db.SaveChangesAsync();
+            
+            await _chatRepository.DeleteAsync(chat);
             return true;
         }
 
@@ -65,9 +70,12 @@ namespace TeamBuilder.Services.Core
             {
                 Id = chat.Id,
                 TeamId = chat.TeamId,
-                SenderId = chat.SenderId,
+                UserId = chat.UserId,
+                UserName = chat.User?.UserName ?? string.Empty,
+                UserFirstName = chat.User?.FirstName ?? string.Empty,
+                UserLastName = chat.User?.LastName ?? string.Empty,
                 Message = chat.Message,
-                SentAt = chat.SentAt
+                CreatedAt = chat.CreatedAt
             };
         }
     }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
+import { BACKEND_URL } from '../config/environment';
 
 const ProfileDropdown = () => {
   const { user, logout } = useAuth();
@@ -34,12 +35,19 @@ const ProfileDropdown = () => {
       <div
         className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-gray-100 transition-colors"
         onClick={toggleDropdown}
-        onMouseEnter={() => setIsOpen(true)}
       >
-        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-          <span className="text-white text-sm font-medium">
-            {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
-          </span>
+        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+          {user?.profilePictureUrl ? (
+            <img 
+              src={`${BACKEND_URL}${user.profilePictureUrl}`}
+              alt="Profile" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-white text-sm font-medium">
+              {user?.firstName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+            </span>
+          )}
         </div>
         <span className="text-sm text-gray-700 hidden md:block">
           {user?.firstName || user?.email}
@@ -55,7 +63,7 @@ const ProfileDropdown = () => {
       </div>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+        <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
           <div className="px-4 py-2 border-b border-gray-100">
             <p className="text-sm font-medium text-gray-900">
               {user?.firstName} {user?.lastName}

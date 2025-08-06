@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { teamService } from '../services/teamService';
+import { useAuth } from '../contexts/AuthContext';
+import { teamService } from '../services/api';
 import Button from '../components/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
 
@@ -23,7 +23,7 @@ const CreateTeam = () => {
       [name]: type === 'checkbox' ? checked : value
     }));
     
-    // Clear error when user starts typing
+
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -71,7 +71,7 @@ const CreateTeam = () => {
       const result = await teamService.createTeam(teamData);
       
       if (result.success) {
-        // Redirect to the new team page or teams list
+
         navigate(`/teams/${result.id}`);
       } else {
         setErrors({ submit: result.message || 'Failed to create team' });
@@ -179,7 +179,7 @@ const CreateTeam = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/teams')}
+                  onClick={() => navigate(-1)}
                   disabled={loading}
                 >
                   Cancel

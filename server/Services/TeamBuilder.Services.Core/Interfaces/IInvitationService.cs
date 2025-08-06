@@ -12,6 +12,7 @@ namespace TeamBuilder.Services.Core.Interfaces
         Task<IEnumerable<InvitationResponse>> GetUserInvitationsAsync(Guid userId);
         Task<InvitationResponse?> GetByIdAsync(Guid invitationId);
         Task<InvitationCreateResponse> CreateAsync(InvitationCreateRequest request);
+        Task<InvitationCreateResponse> CreateByEmailAsync(InvitationCreateByEmailRequest request);
         Task<InvitationRespondResponse> RespondAsync(InvitationRespondRequest request);
         Task<bool> DeleteAsync(Guid invitationId);
     }

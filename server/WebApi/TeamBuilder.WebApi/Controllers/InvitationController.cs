@@ -24,10 +24,10 @@ namespace TeamBuilder.WebApi.Controllers
         [HttpGet("user")]
         public async Task<ActionResult<IEnumerable<InvitationResponse>>> GetUserInvitations()
         {
-            // Get current user from JWT token
+
             var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             
-            // Debug logging
+
             Console.WriteLine($"User claims count: {User.Claims.Count()}");
             foreach (var claim in User.Claims)
             {
@@ -71,7 +71,7 @@ namespace TeamBuilder.WebApi.Controllers
         [HttpGet("debug/all")]
         public async Task<ActionResult<IEnumerable<InvitationResponse>>> GetAllInvitations()
         {
-            // This endpoint is for debugging - shows all invitations regardless of user
+
             var allInvitations = await _invitationService.GetAllAsync(Guid.Empty);
             return Ok(allInvitations);
         }
@@ -92,11 +92,53 @@ namespace TeamBuilder.WebApi.Controllers
             return CreatedAtAction(nameof(GetById), new { invitationId = result.Id }, result);
         }
 
+        [HttpPost("by-email")]
+        public async Task<ActionResult<InvitationCreateResponse>> CreateByEmail([FromBody] InvitationCreateByEmailRequest dto)
+        {
+
+            Console.WriteLine($"Received invitation request:");
+            Console.WriteLine($"TeamId: {dto.TeamId}");
+            Console.WriteLine($"InvitedUserEmail: {dto.InvitedUserEmail}");
+            Console.WriteLine($"InvitedById: {dto.InvitedById}");
+            
+            var result = await _invitationService.CreateByEmailAsync(dto);
+            Console.WriteLine($"Service result - Success: {result.Success}, IsAlreadyInvited: {result.IsAlreadyInvited}");
+            
+            if (!result.Success) 
+            {
+                Console.WriteLine($"Returning BadRequest with error: {result.ErrorMessage}");
+                return BadRequest(result);
+            }
+            
+
+            if (result.IsAlreadyInvited)
+            {
+                Console.WriteLine($"Returning Ok (200) for already invited case");
+                return Ok(result);
+            }
+            
+            Console.WriteLine($"Returning CreatedAtAction (201) for new invitation");
+            return CreatedAtAction(nameof(GetById), new { invitationId = result.Id }, result);
+        }
+
         [HttpPost("respond")]
         public async Task<ActionResult<InvitationRespondResponse>> Respond([FromBody] InvitationRespondRequest dto)
         {
+
+            Console.WriteLine($"Received invitation response request:");
+            Console.WriteLine($"InvitationId: {dto.InvitationId}");
+            Console.WriteLine($"Accept: {dto.Accept}");
+            
             var result = await _invitationService.RespondAsync(dto);
-            if (!result.Success) return BadRequest(result);
+            Console.WriteLine($"Service result - Success: {result.Success}, Accepted: {result.Accepted}");
+            
+            if (!result.Success) 
+            {
+                Console.WriteLine($"Returning BadRequest with error: {result.ErrorMessage}");
+                return BadRequest(result);
+            }
+            
+            Console.WriteLine($"Returning Ok (200) for invitation response");
             return Ok(result);
         }
 

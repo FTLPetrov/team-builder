@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '',
     username: '',
     password: ''
   });
@@ -29,15 +28,21 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    // Validate that at least email or username is provided
-    if (!formData.email.trim() && !formData.username.trim()) {
-      setError('Please enter either email or username');
+
+    if (!formData.username.trim()) {
+      setError('Please enter your username');
       setLoading(false);
       return;
     }
 
     try {
-      const result = await login(formData);
+
+      const loginData = {
+        Username: formData.username,
+        Password: formData.password
+      };
+      
+      const result = await login(loginData);
       if (result.success) {
         navigate('/dashboard');
       } else {
@@ -75,23 +80,6 @@ const Login = () => {
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter your email"
-                />
-                <p className="mt-1 text-xs text-gray-500">Or use your username below</p>
-              </div>
-
-              <div>
                 <label htmlFor="username" className="block text-sm font-medium text-gray-700">
                   Username
                 </label>
@@ -100,12 +88,12 @@ const Login = () => {
                   name="username"
                   type="text"
                   autoComplete="username"
+                  required
                   value={formData.username}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter your username"
                 />
-                <p className="mt-1 text-xs text-gray-500">Or use your email above</p>
               </div>
 
               <div>

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { teamService } from '../services/teamService';
+import { useAuth } from '../contexts/AuthContext';
+import { teamService } from '../services/api/teamService';
 import Button from '../components/Button';
 import Card, { CardHeader, CardTitle, CardContent } from '../components/Card';
+import { safeText } from '../utils/escapeHtml';
 
 const Teams = () => {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ const Teams = () => {
     try {
       const result = await teamService.joinTeam(teamId);
       if (result.success) {
-        // Refresh teams to update the UI
+
         await fetchTeams();
         alert('Successfully joined the team!');
       } else {
@@ -82,7 +83,7 @@ const Teams = () => {
     try {
       const result = await teamService.leaveTeam(teamId);
       if (result.success) {
-        // Refresh teams to update the UI
+
         await fetchTeams();
         alert('Successfully left the team!');
       } else {
@@ -100,8 +101,42 @@ const Teams = () => {
     }
   };
 
+  const handleDeleteTeam = async (teamId) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this team? This action cannot be undone.')) {
+      return;
+    }
+
+    setJoiningTeams(prev => new Set(prev).add(teamId));
+    
+    try {
+      await teamService.deleteTeam(teamId);
+
+
+      await fetchTeams();
+      alert('Successfully deleted the team!');
+    } catch (error) {
+      console.error('Error deleting team:', error);
+      alert('Failed to delete team. Please try again.');
+    } finally {
+      setJoiningTeams(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(teamId);
+        return newSet;
+      });
+    }
+  };
+
   const isUserInTeam = (team) => {
     return team.members?.some(member => member.userId === user?.id);
+  };
+
+  const isUserOrganizer = (team) => {
+    return team.organizerId === user?.id;
   };
 
   const canJoinTeam = (team) => {
@@ -159,7 +194,7 @@ const Teams = () => {
                 <Card key={team.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{team.name}</CardTitle>
+                      <CardTitle className="text-lg">{safeText(team.name)}</CardTitle>
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         team.isOpen ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                       }`}>
@@ -169,7 +204,7 @@ const Teams = () => {
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-600 mb-4 line-clamp-2">
-                      {team.description}
+                      {safeText(team.description)}
                     </p>
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <span>{team.members?.length || 0} members</span>
@@ -183,21 +218,38 @@ const Teams = () => {
                       >
                         View Team
                       </Button>
-                                             {userInTeam ? (
-                         <Button
-                           onClick={() => handleLeaveTeam(team.id)}
-                           disabled={isJoining}
-                           className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                         >
-                           {isJoining ? (
-                             <div className="flex items-center">
-                               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                               Leaving...
-                             </div>
-                           ) : (
-                             'Leave Team'
-                           )}
-                         </Button>
+                      {userInTeam ? (
+                        isUserOrganizer(team) ? (
+                          <Button
+                            onClick={() => handleDeleteTeam(team.id)}
+                            disabled={isJoining}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            {isJoining ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Deleting...
+                              </div>
+                            ) : (
+                              'Delete Team'
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleLeaveTeam(team.id)}
+                            disabled={isJoining}
+                            className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                          >
+                            {isJoining ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Leaving...
+                              </div>
+                            ) : (
+                              'Leave Team'
+                            )}
+                          </Button>
+                        )
                       ) : (
                         <Button
                           onClick={() => handleJoinTeam(team.id)}

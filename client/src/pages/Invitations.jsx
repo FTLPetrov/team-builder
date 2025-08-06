@@ -28,7 +28,7 @@ const Invitations = () => {
   const handleRespond = async (invitationId, response) => {
     try {
       await invitationService.respondToInvitation(invitationId, response);
-      // Remove the invitation from the list
+
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
     } catch (err) {
       setError('Failed to respond to invitation');

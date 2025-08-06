@@ -1,18 +1,21 @@
 import { BrowserRouter as Router } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { AppLayout } from './components/layout';
-import { AppRoutes } from './components/routing';
-import './index.css';
+import { AuthProvider } from './contexts/AuthContext';
+import AppLayout from './layouts/AppLayout';
+import AppRoutes from './utils/routes/AppRoutes';
+import ErrorBoundary from './components/ErrorBoundary';
+import './styles/index.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppLayout>
-          <AppRoutes />
-        </AppLayout>
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <AppLayout>
+            <AppRoutes />
+          </AppLayout>
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

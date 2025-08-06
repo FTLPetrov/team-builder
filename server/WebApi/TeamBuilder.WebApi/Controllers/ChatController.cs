@@ -1,46 +1,63 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TeamBuilder.Services.Core.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using TeamBuilder.Services.Core.Contracts.Chat.Requests;
-using TeamBuilder.Services.Core.Contracts.Chat.Responses;
+using TeamBuilder.Services.Core.Interfaces;
+using TeamBuilder.WebApi.Hubs;
 
 namespace TeamBuilder.WebApi.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
     public class ChatController : ControllerBase
     {
         private readonly IChatService _chatService;
-        public ChatController(IChatService chatService)
+        private readonly IHubContext<ChatHub> _hubContext;
+
+        public ChatController(IChatService chatService, IHubContext<ChatHub> hubContext)
         {
             _chatService = chatService;
+            _hubContext = hubContext;
         }
 
         [HttpGet("team/{teamId}")]
-        public async Task<ActionResult<IEnumerable<ChatResponse>>> GetAll(Guid teamId)
-            => Ok(await _chatService.GetAllAsync(teamId));
-
-        [HttpGet("{chatId}")]
-        public async Task<ActionResult<ChatResponse>> GetById(Guid chatId)
+        public async Task<IActionResult> GetTeamMessages(Guid teamId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            var chat = await _chatService.GetByIdAsync(chatId);
-            if (chat == null) return NotFound();
-            return Ok(chat);
+            try
+            {
+                var messages = await _chatService.GetTeamMessagesAsync(teamId, page, pageSize);
+                return Ok(messages);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { errorMessage = "Failed to retrieve chat messages" });
+            }
         }
 
         [HttpPost]
-        public async Task<ActionResult<ChatCreateResponse>> Create([FromBody] ChatCreateRequest dto)
+        public async Task<IActionResult> CreateMessage([FromBody] ChatCreateRequest request)
         {
-            var result = await _chatService.CreateAsync(dto);
-            if (!result.Success) return BadRequest(result);
-            return CreatedAtAction(nameof(GetById), new { chatId = result.Id }, result);
-        }
+            try
+            {
+                if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj is not Guid userId)
+                {
+                    return Unauthorized();
+                }
 
-        [HttpDelete("{chatId}")]
-        public async Task<IActionResult> Delete(Guid chatId)
-        {
-            var deleted = await _chatService.DeleteAsync(chatId);
-            if (!deleted) return NotFound();
-            return NoContent();
+                var message = await _chatService.CreateMessageAsync(request, userId);
+                
+
+                Console.WriteLine($"ChatController: Broadcasting message to team {request.TeamId}");
+                await _hubContext.Clients.Group($"team_{request.TeamId}").SendAsync("ReceiveMessage", message);
+                Console.WriteLine($"ChatController: Message broadcasted successfully");
+                
+                return CreatedAtAction(nameof(GetTeamMessages), new { teamId = request.TeamId }, message);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { errorMessage = "Failed to create chat message" });
+            }
         }
     }
 } 

@@ -10,5 +10,9 @@ namespace TeamBuilder.Services.Core.Contracts.User.Responses
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? ProfilePictureUrl { get; set; }
+        public bool IsAdmin { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 } 

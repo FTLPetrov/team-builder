@@ -7,8 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../Data/TeamBuilder.Data.Models/TeamBuilder.Data.Models.csproj" />
-    <ProjectReference Include="../../Data/TeamBuilder.Data/TeamBuilder.Data.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Data\TeamBuilder.Data.Common\TeamBuilder.Data.Common.csproj" />
+    <ProjectReference Include="..\..\Data\TeamBuilder.Data\TeamBuilder.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,16 +2,18 @@
 using TeamBuilder.Services.Core.Interfaces;
 using TeamBuilder.Services.Core.Contracts.User.Responses;
 using TeamBuilder.Services.Core.Contracts.User.Requests;
+using TeamBuilder.Data.Common.Security;
+using System.ComponentModel.DataAnnotations;
+using TeamBuilder.Data.Common;
 
 namespace TeamBuilder.WebApi.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UserController : ControllerBase
+    public class UserController : BaseController
     {
         private readonly IUserService _userService;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, IValidationService validationService) 
+            : base(validationService)
         {
             _userService = userService;
         }
@@ -27,50 +29,68 @@ namespace TeamBuilder.WebApi.Controllers
         {
             var user = await _userService.GetByIdAsync(id);
             if (user == null)
-                return NotFound();
+                return NotFoundResponse();
             return Ok(user);
         }
 
         [HttpPost]
         public async Task<ActionResult<UserResponse>> Create([FromBody] UserCreateRequest dto)
         {
-            // Validate password confirmation
-            if (dto.Password != dto.ConfirmPassword)
+            return await ValidateAndExecuteAsync(dto, async (validatedDto) =>
             {
-                return BadRequest(new { message = "Password and confirm password do not match" });
-            }
-
-            // Validate password strength
-            if (dto.Password.Length < 6)
-            {
-                return BadRequest(new { message = "Password must be at least 6 characters long" });
-            }
-
-            try
-            {
-                var user = await _userService.CreateAsync(dto.FirstName, dto.LastName, dto.Email, dto.UserName, dto.Password);
-                return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+                try
+                {
+                    var user = await _userService.CreateAsync(
+                        SanitizeInput(validatedDto.FirstName),
+                        SanitizeInput(validatedDto.LastName),
+                        validatedDto.Email,
+                        validatedDto.UserName,
+                        validatedDto.Password);
+                    
+                    return CreatedAtAction(nameof(GetById), new { id = user.Id }, user);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequestResponse(ex.Message);
+                }
+            });
         }
 
         [HttpPut("{id}")]
         public async Task<ActionResult<UserResponse>> Update(Guid id, [FromBody] UserUpdateRequest dto)
         {
-            try
+            return await ValidateAndExecuteAsync(dto, async (validatedDto) =>
             {
-                var user = await _userService.UpdateAsync(id, dto.FirstName, dto.LastName, dto.Email, dto.UserName, dto.Password);
-                if (user == null)
-                    return NotFound();
-                return Ok(user);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+                try
+                {
+                    var currentUser = await _userService.GetByIdAsync(id);
+                    if (currentUser == null)
+                        return NotFoundResponse();
+
+                    var firstName = !string.IsNullOrWhiteSpace(validatedDto.FirstName) 
+                        ? SanitizeInput(validatedDto.FirstName) 
+                        : currentUser.FirstName;
+                    var lastName = !string.IsNullOrWhiteSpace(validatedDto.LastName) 
+                        ? SanitizeInput(validatedDto.LastName) 
+                        : currentUser.LastName;
+                    var email = !string.IsNullOrWhiteSpace(validatedDto.Email) 
+                        ? validatedDto.Email 
+                        : currentUser.Email;
+                    var userName = !string.IsNullOrWhiteSpace(validatedDto.UserName) 
+                        ? validatedDto.UserName 
+                        : currentUser.UserName;
+
+                    var user = await _userService.UpdateAsync(id, firstName, lastName, email, userName, validatedDto.Password);
+                    if (user == null)
+                        return NotFoundResponse();
+                    
+                    return Ok(user);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequestResponse(ex.Message);
+                }
+            });
         }
 
         [HttpDelete("{id}")]
@@ -78,17 +98,24 @@ namespace TeamBuilder.WebApi.Controllers
         {
             var deleted = await _userService.DeleteAsync(id);
             if (!deleted)
-                return NotFound();
-            return NoContent();
+                return NotFoundResponse();
+            
+                                return NoContent();
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<UserLoginResponse>> Login([FromBody] UserLoginRequest request)
         {
-            var result = await _userService.LoginAsync(request);
-            if (result == null)
-                return Unauthorized(new { message = "Invalid email or password" });
-            return Ok(result);
+            return await ValidateAndExecuteAsync(request, async (validatedRequest) =>
+            {
+                var result = await _userService.LoginAsync(validatedRequest);
+                if (result == null)
+                {
+                    return UnauthorizedResponse("Invalid email or password");
+                }
+                
+                return Ok(result);
+            });
         }
 
         [HttpPost("logout")]
@@ -96,12 +123,17 @@ namespace TeamBuilder.WebApi.Controllers
         {
             var token = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
             if (string.IsNullOrEmpty(token))
-                return BadRequest(new { message = "No token provided" });
+                return BadRequestResponse("No token provided");
 
             var success = await _userService.LogoutAsync(token);
             if (!success)
-                return BadRequest(new { message = "Failed to logout" });
+                return BadRequestResponse("Failed to logout");
 
+            var userId = GetCurrentUserId();
+            if (userId.HasValue)
+            {
+
+            }
             return Ok(new { message = "Successfully logged out" });
         }
 
@@ -110,27 +142,95 @@ namespace TeamBuilder.WebApi.Controllers
         {
             var token = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
             if (string.IsNullOrEmpty(token))
-                return Unauthorized(new { message = "No token provided" });
+                return UnauthorizedResponse("No token provided");
 
             var user = await _userService.GetCurrentUserAsync(token);
             if (user == null)
-                return Unauthorized(new { message = "Invalid or expired token" });
+                return UnauthorizedResponse("Invalid or expired token");
 
             return Ok(user);
         }
 
-        [HttpPut("{id}/profile-picture")]
-        public async Task<ActionResult<UserResponse>> UpdateProfilePicture(Guid id, [FromBody] UpdateProfilePictureRequest request)
+        [HttpPut("profile-picture")]
+        public async Task<ActionResult<UserResponse>> UpdateProfilePicture(IFormFile profilePicture)
         {
-            var user = await _userService.UpdateProfilePictureAsync(id, request.ProfilePictureUrl);
-            if (user == null)
-                return NotFound();
-            return Ok(user);
+            if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj is not Guid userId)
+            {
+                return UnauthorizedResponse("No valid user found");
+            }
+
+            return await ValidateFileAndExecuteAsync(profilePicture, SecurityConfig.FileUpload.AllowedImageTypes, SecurityConfig.FileUpload.MaxFileSizeMB, async (validatedFile) =>
+            {
+                try
+                {
+                    var user = await _userService.UpdateProfilePictureAsync(userId, validatedFile);
+                    if (user == null)
+                        return NotFoundResponse();
+                    
+                    return Ok(user);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequestResponse(ex.Message);
+                }
+            });
+        }
+
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            return await ValidateAndExecuteAsync(request, async (validatedRequest) =>
+            {
+                try
+                {
+                    var token = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+                    if (string.IsNullOrEmpty(token))
+                        return UnauthorizedResponse("No token provided");
+
+                    var currentUser = await _userService.GetCurrentUserAsync(token);
+                    if (currentUser == null)
+                        return UnauthorizedResponse("Invalid or expired token");
+
+                    var success = await _userService.ChangePasswordAsync(currentUser.Id, validatedRequest.CurrentPassword, validatedRequest.NewPassword);
+                    if (!success)
+                        return BadRequestResponse("Invalid current password or password change failed");
+
+                    return Ok(new { message = "Password changed successfully" });
+                }
+                catch (Exception ex)
+                {
+                    return BadRequestResponse(ex.Message);
+                }
+            });
+        }
+
+        [HttpGet("warnings")]
+        public async Task<ActionResult<IEnumerable<WarningResponse>>> GetUserWarnings()
+        {
+            try
+            {
+                if (!HttpContext.Items.TryGetValue("UserId", out var userIdObj) || userIdObj is not Guid userId)
+                {
+                    return UnauthorizedResponse("No valid user found");
+                }
+
+                var warnings = await _userService.GetUserWarningsAsync(userId);
+                return Ok(warnings);
+            }
+            catch (Exception ex)
+            {
+                return BadRequestResponse(ex.Message);
+            }
         }
     }
 
-    public class UpdateProfilePictureRequest
+    public class ChangePasswordRequest
     {
-        public string ProfilePictureUrl { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Current password is required")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required")]
+        [StrongPassword(ErrorMessage = "New password does not meet security requirements")]
+        public string NewPassword { get; set; } = string.Empty;
     }
 }

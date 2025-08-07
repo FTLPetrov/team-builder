@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { BACKEND_URL } from '../config/environment';
 
@@ -7,6 +7,7 @@ const ProfileDropdown = () => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -24,6 +25,7 @@ const ProfileDropdown = () => {
   const handleLogout = () => {
     logout();
     setIsOpen(false);
+    navigate("/login");
   };
 
   const toggleDropdown = () => {
